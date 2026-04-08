@@ -1,4 +1,4 @@
-# Phase 3: Install Python 3.11, Git, and NSSM
+# Phase 3: Install Python 3.13, Git, and NSSM
 # Downloads all three in parallel, then installs sequentially.
 
 function Invoke-PythonInstall {
@@ -11,10 +11,10 @@ function Invoke-PythonInstall {
     # modern HTTPS servers (python.org, GitHub CDN) reject, causing silent hangs.
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-    Print-Message "blue" "Downloading Python 3.11, Git, and NSSM in parallel..."
+    Print-Message "blue" "Downloading Python 3.13, Git, and NSSM in parallel..."
     _Download-All-Parallel
 
-    Print-Message "blue" "Installing Python 3.11, Git, and NSSM..."
+    Print-Message "blue" "Installing Python 3.13, Git, and NSSM..."
     _Install-Python
     _Install-Git
     _Install-Nssm
@@ -50,7 +50,7 @@ function Invoke-PythonInstall {
 
 function _Download-All-Parallel {
     # Launch all three downloads simultaneously as background jobs
-    $pythonInstaller = "$env:TEMP\python-3.11.9-amd64.exe"
+    $pythonInstaller = "$env:TEMP\python-3.13.3-amd64.exe"
     $gitInstaller    = "$env:TEMP\git-installer.exe"
     $nssmZip         = "$env:TEMP\nssm.zip"
 
@@ -62,7 +62,7 @@ function _Download-All-Parallel {
         $jobs += Start-Job -Name "dl-python" -ScriptBlock {
             param($dest)
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe" `
+            Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.13.3/python-3.13.3-amd64.exe" `
                 -OutFile $dest -UseBasicParsing -ErrorAction Stop
             "OK: python installer $('{0:N1}' -f ((Get-Item $dest).Length/1MB))MB"
         } -ArgumentList $pythonInstaller
@@ -128,16 +128,16 @@ function _Install-Python {
         return
     }
 
-    $installer = "$env:TEMP\python-3.11.9-amd64.exe"
+    $installer = "$env:TEMP\python-3.13.3-amd64.exe"
     if (-not (Test-Path $installer)) { Die "Python installer not found at $installer -- download failed" }
 
-    Print-Message "blue" "Installing Python 3.11.9 (system-wide)..."
+    Print-Message "blue" "Installing Python 3.13.3 (system-wide)..."
     $proc = Start-Process $installer `
         -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_doc=0" `
         -Wait -PassThru
     if ($proc.ExitCode -ne 0) { Die "Python installer failed (exit: $($proc.ExitCode))" }
     Remove-Item $installer -Force -ErrorAction SilentlyContinue
-    Print-Message "green" "Python 3.11.9 installed"
+    Print-Message "green" "Python 3.13.3 installed"
 }
 
 function _Install-Git {

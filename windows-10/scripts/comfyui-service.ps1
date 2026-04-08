@@ -60,8 +60,17 @@ function _Clone-ComfyUI {
         if ($cloneExit -ne 0) { $ErrorActionPreference = $savedEAP; Die "git clone failed (exit: $cloneExit)" }
     }
 
+    # Pin to the exact ComfyUI commit from PFX snapshot
+    $COMFYUI_COMMIT = "040460495c5713b852e4aac29a909aa63b309da7"
+    Push-Location $COMFYUI_DIR
+    & git fetch --depth 1 origin $COMFYUI_COMMIT 2>&1 | ForEach-Object { Write-Host $_ }
+    & git checkout $COMFYUI_COMMIT 2>&1 | ForEach-Object { Write-Host $_ }
+    $checkoutExit = $LASTEXITCODE
+    Pop-Location
+    if ($checkoutExit -ne 0) { $ErrorActionPreference = $savedEAP; Die "git checkout $COMFYUI_COMMIT failed" }
+
     $ErrorActionPreference = $savedEAP
-    Print-Message "green" "ComfyUI cloned to $COMFYUI_DIR"
+    Print-Message "green" "ComfyUI cloned and pinned to commit $COMFYUI_COMMIT"
 }
 
 function _Create-Venv {
@@ -85,15 +94,15 @@ function _Create-Venv {
 function _Install-Dependencies {
     Print-Message "blue" "Installing PyTorch (CUDA 12.6) and ComfyUI requirements..."
 
-    # PyTorch cu126 -- matches CUDA 12.6 on this host (Driver 560.94)
-    # RTX 6000 Ada (sm_89) is fully supported by cu121+ releases
-    Print-Message "blue" "Installing torch+cu126 (this may take several minutes)..."
+    # PyTorch cu128 -- matches PFX snapshot (torch==2.7.1+cu128, torchvision==0.22.1+cu128)
+    # RTX 6000 Ada (sm_89) fully supported; cu128 wheels require Driver >= 522.06
+    Print-Message "blue" "Installing torch 2.7.1+cu128 (this may take several minutes)..."
     & $PIP_VENV install `
-        torch torchvision torchaudio `
-        --index-url https://download.pytorch.org/whl/cu126 `
+        "torch==2.7.1+cu128" "torchvision==0.22.1+cu128" "torchaudio==2.7.1+cu128" `
+        --index-url https://download.pytorch.org/whl/cu128 `
         --no-warn-script-location
     if ($LASTEXITCODE -ne 0) { Die "PyTorch installation failed" }
-    Print-Message "green" "PyTorch cu126 installed"
+    Print-Message "green" "PyTorch 2.7.1+cu128 installed"
 
     # ComfyUI requirements
     Print-Message "blue" "Installing ComfyUI requirements..."

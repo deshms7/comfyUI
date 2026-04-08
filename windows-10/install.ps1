@@ -21,6 +21,7 @@ $SCRIPT_DIR = $PSScriptRoot
 . "$SCRIPT_DIR\scripts\system-setup.ps1"
 . "$SCRIPT_DIR\scripts\python-install.ps1"
 . "$SCRIPT_DIR\scripts\comfyui-service.ps1"
+. "$SCRIPT_DIR\scripts\custom-nodes.ps1"
 . "$SCRIPT_DIR\scripts\validate.ps1"
 . "$SCRIPT_DIR\scripts\workflow-test.ps1"
 . "$SCRIPT_DIR\scripts\remote-access.ps1"
@@ -68,8 +69,9 @@ function Main {
     Write-Host ""
     Write-Host "  1. Pre-flight checks (OS, CPU, RAM, GPU, disk)"
     Write-Host "  2. System baseline (directories, verify NVIDIA driver)"
-    Write-Host "  3. Python 3.11 + MinGit + NSSM (direct downloads, parallel)"
-    Write-Host "  4. Clone ComfyUI, create venv, install PyTorch cu126"
+    Write-Host "  3. Python 3.13 + MinGit + NSSM (direct downloads, parallel)"
+    Write-Host "  4. Clone ComfyUI (commit 040460495), create venv, install PyTorch cu128"
+    Write-Host "  4.5 Install 25+ custom nodes from PFX snapshot"
     Write-Host "  5. Register and start ComfyUI Windows service (NSSM)"
     Write-Host "  6. Validation (service, port, GPU via PyTorch)"
     Write-Host "  7. Workflow test (download SD1.5 model, run txt2img, verify output)"
@@ -91,6 +93,10 @@ function Main {
     # Phase 4 + 5
     Print-Message "blue" "=== Phase 4+5: ComfyUI Install + Service ==="
     Invoke-ComfyUISetup
+
+    # Phase 4.5
+    Print-Message "blue" "=== Phase 4.5: Custom Nodes ==="
+    Invoke-CustomNodesInstall
 
     # Phase 6
     Print-Message "blue" "=== Phase 6: Validation ==="
