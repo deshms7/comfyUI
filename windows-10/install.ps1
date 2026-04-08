@@ -6,10 +6,10 @@
 #   .\install.ps1
 #
 # Override defaults via environment variables before running:
-#   $env:COMFYUI_PORT = "8188"       # default: 8188
-#   $env:REEMO_AGENT_TOKEN = "<key>" # required for Phase 8 (remote access)
-#   $env:PARSEC_TEAM_ID    = "<id>"  # optional
-#   $env:PARSEC_TEAM_SECRET= "<sec>" # optional
+#   $env:COMFYUI_PORT = "8188"                        # default: 8188
+#   $env:REEMO_AGENT_TOKEN = "studio_fa413ff7044b"    # PFX Reemo studio key (Phase 8)
+#   $env:PARSEC_TEAM_ID    = "<id>"                   # optional
+#   $env:PARSEC_TEAM_SECRET= "<sec>"                  # optional
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -48,7 +48,7 @@ function Main {
     # Pre-flight
     Write-Host ""
     Write-Host "=== Pre-flight Checks ==="
-    Check-SystemRequirements -MinCores 4 -MinRamGB 8
+    Check-SystemRequirements -MinCores 16 -MinRamGB 32
 
     # GPU check
     $nvidiaSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
@@ -90,13 +90,9 @@ function Main {
     Print-Message "blue" "=== Phase 3: Python + Git + NSSM ==="
     Invoke-PythonInstall
 
-    # Phase 4 + 5
-    Print-Message "blue" "=== Phase 4+5: ComfyUI Install + Service ==="
+    # Phase 4 + 4.5 + 5
+    Print-Message "blue" "=== Phase 4+4.5+5: ComfyUI Install + Custom Nodes + Service ==="
     Invoke-ComfyUISetup
-
-    # Phase 4.5
-    Print-Message "blue" "=== Phase 4.5: Custom Nodes ==="
-    Invoke-CustomNodesInstall
 
     # Phase 6
     Print-Message "blue" "=== Phase 6: Validation ==="

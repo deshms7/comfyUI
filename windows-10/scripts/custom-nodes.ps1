@@ -148,6 +148,21 @@ function Invoke-CustomNodesInstall {
     Print-Message "yellow" "  basic_data_handling, comfyui-ig-nodes, comfyui-supernodes,"
     Print-Message "yellow" "  comfyui-video-matting, Compare_videos, radiance"
 
+    # Install websocket_image_save.py (file_custom_node from snapshot)
+    $wsFile = "$CUSTOM_NODES_DIR\websocket_image_save.py"
+    if (-not (Test-Path $wsFile)) {
+        Print-Message "blue" "Downloading websocket_image_save.py..."
+        $wsUrl = "https://raw.githubusercontent.com/Djrango/comfyui_snag/main/websocket_image_save.py"
+        try {
+            Invoke-WebRequest -Uri $wsUrl -OutFile $wsFile -UseBasicParsing -ErrorAction Stop
+            Print-Message "green" "websocket_image_save.py installed"
+        } catch {
+            Print-Message "yellow" "WARN: Could not download websocket_image_save.py -- copy manually if needed"
+        }
+    } else {
+        Print-Message "blue" "SKIP: websocket_image_save.py already present"
+    }
+
     Set-Sentinel ".custom-nodes-done"
     Print-Message "green" "Custom node installation complete"
 }

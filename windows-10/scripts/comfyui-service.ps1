@@ -1,4 +1,4 @@
-# Phase 4 + 5: Clone ComfyUI, install dependencies (PyTorch cu126), register NSSM service
+# Phase 4 + 5: Clone ComfyUI, install dependencies (PyTorch cu128), register NSSM service
 
 $COMFYUI_REPO  = "https://github.com/comfyanonymous/ComfyUI.git"
 $VENV_DIR      = "$COMFYUI_DIR\.venv"
@@ -16,6 +16,9 @@ function Invoke-ComfyUISetup {
     } else {
         Print-Message "blue" "SKIP: ComfyUI already installed"
     }
+
+    # ---- Phase 4.5: Custom nodes (must be BEFORE service starts) ----
+    Invoke-CustomNodesInstall
 
     # ---- Phase 5: Register and start service ----
     _Register-Service
