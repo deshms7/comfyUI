@@ -60,9 +60,20 @@ function installNvidiaToolkit() {
 # Detect Blackwell GPU and apply the GSP firmware workaround if needed.
 # Safe to call on non-Blackwell machines — exits immediately if not needed.
 function _apply_blackwell_fix_if_needed() {
-    # Blackwell GPUs report RmInitAdapter failed when GSP firmware is enabled
-    # because the driver does not include gsp_gb10x.bin.
-    # Check: does /usr/lib/firmware/nvidia/<ver>/ lack a gb10x firmware file?
+    # Blackwell GPUs (compute capability 12.x, sm_120) report RmInitAdapter failed
+    # when GSP firmware is enabled because the 590 driver does not ship gsp_gb10x.bin.
+    # Gate on compute capability FIRST so Ampere/Hopper/Ada GPUs are never touched.
+    local compute_cap
+    compute_cap=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' ')
+    local cc_major
+    cc_major=$(echo "$compute_cap" | cut -d. -f1)
+
+    if [[ -z "$cc_major" || "$cc_major" -lt 12 ]]; then
+        print_message "blue" "GPU compute cap ${compute_cap:-unknown} (not Blackwell) — GSP firmware fix not needed"
+        return 0
+    fi
+
+    # From here: confirmed Blackwell (sm_12x). Check if the GSP firmware is missing.
     local driver_ver
     driver_ver=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 || true)
     local firmware_dir="/usr/lib/firmware/nvidia/${driver_ver}"

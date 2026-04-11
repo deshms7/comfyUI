@@ -1,6 +1,6 @@
-# ComfyUI — Ubuntu 22.04 Provisioning Script
+# ComfyUI — Ubuntu Provisioning Script
 
-Provisions a fresh Ubuntu 22.04 machine to run the latest [ComfyUI](https://github.com/comfyanonymous/ComfyUI) Docker image with GPU support, managed as a systemd service. Safe to re-run (idempotent). Produces a ready instance at `http://<host>:8188`.
+Provisions a fresh Ubuntu 22.04 or 24.04 machine to run the latest [ComfyUI](https://github.com/comfyanonymous/ComfyUI) Docker image with GPU support, managed as a systemd service. Safe to re-run (idempotent). Produces a ready instance at `http://<host>:8188`.
 
 ---
 
@@ -10,7 +10,7 @@ The machine must already have:
 
 | Requirement | Detail |
 |---|---|
-| OS | Ubuntu 22.04 LTS |
+| OS | Ubuntu 22.04 LTS or 24.04 LTS |
 | NVIDIA driver | `nvidia-driver-590-open` or newer (open kernel modules required for Blackwell GPUs) |
 | Internet access | To pull Docker image and apt packages |
 | Root access | Script must run as root |
@@ -26,17 +26,23 @@ The machine must already have:
 ## Quick Start
 
 ```bash
-# Copy scripts to the machine
-scp -r node-setup/comfyui root@<host>:/tmp/
+# Copy scripts to the machine (adjust -p if SSH is on a non-standard port)
+scp -P <port> -r ubuntu-22 user@<host>:/tmp/comfyui-setup
 
 # SSH in and run
-ssh root@<host> "bash /tmp/comfyui/ubuntu-22/install.sh"
+ssh -p <port> user@<host> "sudo bash /tmp/comfyui-setup/install.sh"
 ```
 
-One-liner alternative:
+With remote access (Reemo required):
 
 ```bash
-ssh root@<host> "bash -s" < node-setup/comfyui/ubuntu-22/install.sh
+REEMO_AGENT_TOKEN=<token> sudo -E bash install.sh
+```
+
+If SSH runs on a non-standard port and ufw is not yet configured, pass SSH_PORT explicitly so the firewall rule is correct:
+
+```bash
+SSH_PORT=16015 REEMO_AGENT_TOKEN=<token> sudo -E bash install.sh
 ```
 
 ---
@@ -59,7 +65,8 @@ All tunables are environment variables. Pass them with `sudo -E` or prefix the c
 | `PARSEC_TEAM_ID` | *(optional)* | Parsec Teams ID — for managed host registration |
 | `PARSEC_TEAM_SECRET` | *(optional)* | Parsec Teams secret (paired with `PARSEC_TEAM_ID`) |
 | `REEMO_AGENT_VERSION` | latest | Pin a specific Reemo agent version |
-| `REMOTE_ACCESS_USER` | `comfyui` | OS user that owns the desktop session |
+| `REMOTE_ACCESS_USER` | `$SUDO_USER` → `user` | OS user that owns the desktop session (auto-detected from the sudo caller) |
+| `SSH_PORT` | auto-detected | SSH port to keep open in ufw (reads sshd_config / active listener; override if auto-detect fails) |
 
 Examples:
 

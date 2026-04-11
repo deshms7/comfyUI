@@ -163,6 +163,19 @@ function Invoke-CustomNodesInstall {
         Print-Message "blue" "SKIP: websocket_image_save.py already present"
     }
 
+    # Re-pin torch to exact customer versions -- some node requirements.txt files
+    # (e.g. comfyui-corridorkey) upgrade torch, which breaks cu128 compatibility.
+    Print-Message "blue" "Re-pinning torch to customer-specified versions (2.7.1+cu128)..."
+    & $PYTHON_VENV -m pip install `
+        "torch==2.7.1+cu128" "torchvision==0.22.1+cu128" "torchaudio==2.7.1+cu128" `
+        --index-url https://download.pytorch.org/whl/cu128 `
+        --no-warn-script-location --quiet
+    if ($LASTEXITCODE -ne 0) {
+        Print-Message "yellow" "WARN: torch re-pin had errors -- verify torch version after install"
+    } else {
+        Print-Message "green" "torch 2.7.1+cu128 re-pinned successfully"
+    }
+
     Set-Sentinel ".custom-nodes-done"
     Print-Message "green" "Custom node installation complete"
 }

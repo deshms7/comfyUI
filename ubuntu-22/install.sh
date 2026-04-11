@@ -33,17 +33,30 @@ function main() {
         exit 1
     fi
 
-    # OS gate
+    # OS gate — supports Ubuntu 22.04 and 24.04; warns on anything else
     if [[ -f /etc/os-release ]]; then
         # shellcheck source=/dev/null
         source /etc/os-release
-        if [[ "$ID" != "ubuntu" || "$VERSION_ID" != "22.04" ]]; then
-            echo "Warning: This script is designed for Ubuntu 22.04 (detected: ${PRETTY_NAME:-unknown})"
-            echo -n "Continue anyway? [y/N]: "
-            read -r response
-            if [[ ! "$response" =~ ^[Yy]$ ]]; then
-                exit 1
+        if [[ "$ID" != "ubuntu" ]]; then
+            echo "Warning: This script is designed for Ubuntu (detected: ${PRETTY_NAME:-unknown})"
+            if [[ -t 0 ]]; then
+                echo -n "Continue anyway? [y/N]: "
+                read -r response
+                if [[ ! "$response" =~ ^[Yy]$ ]]; then exit 1; fi
+            else
+                echo "Non-interactive — proceeding"
             fi
+        elif [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" ]]; then
+            echo "Warning: Tested on Ubuntu 22.04/24.04 (detected: ${PRETTY_NAME:-unknown})"
+            if [[ -t 0 ]]; then
+                echo -n "Continue anyway? [y/N]: "
+                read -r response
+                if [[ ! "$response" =~ ^[Yy]$ ]]; then exit 1; fi
+            else
+                echo "Non-interactive — proceeding"
+            fi
+        else
+            echo "OS: ${PRETTY_NAME}"
         fi
     fi
 
@@ -75,10 +88,15 @@ function main() {
     echo "  8. Remote access client setup (XFCE desktop, Parsec host, Reemo agent, firewall)"
     echo "  9. Add my packages (Google Chrome, IllumaComfyUI.html desktop guide)"
     echo ""
-    echo -n "Continue? [y/N]: "
-    read -r response
-    if [[ ! "$response" =~ ^[Yy]$ ]]; then
-        exit 1
+    # Auto-confirm when stdin is not a TTY (non-interactive / piped runs)
+    if [[ -t 0 ]]; then
+        echo -n "Continue? [y/N]: "
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        echo "Non-interactive mode — proceeding automatically"
     fi
 
     trap cleanup_temp_files EXIT

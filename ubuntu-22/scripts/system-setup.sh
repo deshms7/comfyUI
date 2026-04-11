@@ -30,7 +30,8 @@ function setupSystem() {
         jq \
         wget \
         unzip \
-        pciutils
+        pciutils \
+        python3
 
     # System limits (from system-setup.sh:setupSystem)
     print_message "blue" "Applying system limits..."

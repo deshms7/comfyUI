@@ -23,7 +23,9 @@
 #   REMOTE_ACCESS_USER    OS user that will own the desktop session (default: comfyui)
 
 SENTINEL_DIR="${SENTINEL_DIR:-/var/lib/illuma}"
-REMOTE_ACCESS_USER="${REMOTE_ACCESS_USER:-comfyui}"
+# Default to the interactive login user (the one that ran sudo).
+# Falls back to 'user' which is the standard login user on most cloud providers.
+REMOTE_ACCESS_USER="${REMOTE_ACCESS_USER:-${SUDO_USER:-user}}"
 
 # ---------------------------------------------------------------------------
 # Main entry point
@@ -37,11 +39,13 @@ function installRemoteAccess() {
         return 0
     fi
 
-    # REEMO_AGENT_TOKEN is mandatory — fail early with a clear message
+    # REEMO_AGENT_TOKEN is required for Reemo registration.
+    # If not set, skip Phase 8 and print instructions — the other phases still complete.
     if [[ -z "${REEMO_AGENT_TOKEN:-}" ]]; then
-        die "REEMO_AGENT_TOKEN is not set. \
-Obtain your Personal Key or Studio Key from reemo.io/download \
-and re-run with: REEMO_AGENT_TOKEN=<key> sudo -E bash install.sh"
+        print_message "yellow" "SKIP Phase 8: REEMO_AGENT_TOKEN is not set."
+        print_message "yellow" "  To run remote access setup later:"
+        print_message "yellow" "    REEMO_AGENT_TOKEN=<key> sudo -E bash /tmp/comfyui-setup/install.sh"
+        return 0
     fi
 
     _installDesktop
@@ -284,6 +288,28 @@ function _installReemo() {
 # 5. Firewall (ufw)
 # ---------------------------------------------------------------------------
 
+function _detectSshPort() {
+    # Honour explicit override first
+    if [[ -n "${SSH_PORT:-}" ]]; then
+        echo "$SSH_PORT"
+        return
+    fi
+    # Read from sshd_config (handles Port directives in the main file)
+    local port
+    port=$(grep -E '^Port ' /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' | head -1)
+    if [[ -n "$port" ]]; then
+        echo "$port"
+        return
+    fi
+    # Fall back to active listener (handles include-based config, e.g. /etc/ssh/sshd_config.d/)
+    port=$(ss -tlnp 2>/dev/null | awk '/sshd/{n=split($4,a,":"); print a[n]}' | head -1)
+    if [[ -n "$port" ]]; then
+        echo "$port"
+        return
+    fi
+    echo "22"
+}
+
 function _configureFirewall() {
     print_message "blue" "Configuring firewall (ufw)..."
 
@@ -292,8 +318,13 @@ function _configureFirewall() {
         DEBIAN_FRONTEND=noninteractive apt-get install -y ufw 2>/dev/null
     fi
 
-    # Always allow SSH first — prevents locking ourselves out when enabling ufw
-    ufw allow 22/tcp comment "SSH"
+    # Detect the active SSH port — critical to allow before enabling ufw or we lose access.
+    # On this machine the SSH port is 16015 (non-standard). Auto-detection reads
+    # sshd_config or the active listener so this works for both standard and custom ports.
+    local ssh_port
+    ssh_port=$(_detectSshPort)
+    print_message "blue" "SSH port detected: ${ssh_port}"
+    ufw allow "${ssh_port}/tcp" comment "SSH"
 
     # ComfyUI web UI
     ufw allow "${COMFYUI_PORT:-8188}/tcp" comment "ComfyUI"
@@ -315,7 +346,7 @@ function _configureFirewall() {
     ufw allow 5349/tcp  comment "Reemo TURN TLS"
 
     # Enable ufw (non-interactively; --force skips the "may disrupt existing
-    # SSH connections" prompt — safe because we already allowed port 22 above)
+    # SSH connections" prompt — safe because we already allowed the SSH port above)
     ufw --force enable
 
     ufw status verbose
@@ -373,5 +404,6 @@ export -f _installDesktop
 export -f _configureNvidiaVirtualDisplay
 export -f _installParsec
 export -f _installReemo
+export -f _detectSshPort
 export -f _configureFirewall
 export -f _enableRemoteAccessServices

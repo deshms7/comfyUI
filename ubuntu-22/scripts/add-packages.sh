@@ -9,7 +9,7 @@
 # Also places IllumaComfyUI.html user guide on the desktop of REMOTE_ACCESS_USER.
 
 SENTINEL_DIR="${SENTINEL_DIR:-/var/lib/illuma}"
-REMOTE_ACCESS_USER="${REMOTE_ACCESS_USER:-user}"
+REMOTE_ACCESS_USER="${REMOTE_ACCESS_USER:-${SUDO_USER:-user}}"
 
 # ---------------------------------------------------------------------------
 # Main entry point
