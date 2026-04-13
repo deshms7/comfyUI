@@ -21,7 +21,7 @@ trap {
 Log "=== s3: Download from DO Spaces ===" "Cyan"
 
 if (-not (Test-Path "C:\setup\creds.ps1")) { Fail "C:\setup\creds.ps1 not found" }
-. "C:\setup\creds.ps1"
+iex (Get-Content "C:\setup\creds.ps1" -Raw)
 
 $RC      = "C:\Tools\rclone\rclone.exe"
 $RC_CONF = "C:\Tools\rclone\rclone.conf"

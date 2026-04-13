@@ -23,7 +23,7 @@ Log "=== s1: Install dependencies ===" "Cyan"
 
 # Load creds (needed for rclone config)
 if (-not (Test-Path "C:\setup\creds.ps1")) { Fail "C:\setup\creds.ps1 not found" }
-. "C:\setup\creds.ps1"
+iex (Get-Content "C:\setup\creds.ps1" -Raw)
 
 # Refresh PATH helper
 function RefreshEnv {
