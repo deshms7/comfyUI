@@ -41,8 +41,8 @@ function Download($url, $out) {
 function FindPython {
     $paths = @(
         "C:\Program Files\Python311\python.exe",
-        "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe",
-        "C:\Python311\python.exe"
+        "C:\Python311\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe"
     )
     foreach ($p in $paths) {
         if ((Test-Path $p) -and ($p -notlike "*WindowsApps*")) {
@@ -68,11 +68,11 @@ if ($PY -ne "") {
     Log "  Installing Python 3.11.9..." "Blue"
     $inst = "C:\Logs\illuma\tmp\py311.exe"
     Download "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe" $inst
-    & $inst /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_launcher=0 TargetDir="C:\Python311"
-    if ($LASTEXITCODE -ne 0) { Fail "Python install failed exit code: $LASTEXITCODE" }
+    $p = Start-Process -Wait -PassThru -FilePath $inst -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_launcher=0"
+    if ($p.ExitCode -ne 0) { Fail ("Python install failed exit code: " + $p.ExitCode) }
     RefreshEnv
     $PY = FindPython
-    if ($PY -eq "") { Fail "Python not found after install - check installer log" }
+    if ($PY -eq "") { Fail "Python not found after install - check C:\Program Files\Python311\" }
     OK ("Python installed: " + $PY)
 }
 RefreshEnv
@@ -90,8 +90,8 @@ if ($GIT) {
     Log "  Installing Git..." "Blue"
     $inst = "C:\Logs\illuma\tmp\git.exe"
     Download "https://github.com/git-for-windows/git/releases/download/v2.44.0.windows.1/Git-2.44.0-64-bit.exe" $inst
-    & $inst /VERYSILENT /NORESTART /NOCANCEL /SP- /COMPONENTS="icons,ext\reg\shellhere,assoc,assoc_sh"
-    if ($LASTEXITCODE -ne 0) { Fail "Git install failed: $LASTEXITCODE" }
+    $p = Start-Process -Wait -PassThru -FilePath $inst -ArgumentList "/VERYSILENT /NORESTART /NOCANCEL /SP-"
+    if ($p.ExitCode -ne 0) { Fail ("Git install failed: " + $p.ExitCode) }
     RefreshEnv
     $env:Path += ";C:\Program Files\Git\bin;C:\Program Files\Git\cmd"
     $GIT = Get-Command git -ErrorAction SilentlyContinue
@@ -111,7 +111,9 @@ if (Test-Path "$COMFYUI\.git") {
     SKP "ComfyUI repo already present"
 } else {
     Log "  Cloning ComfyUI (latest main)..." "Blue"
-    & git clone https://github.com/comfyanonymous/ComfyUI.git $COMFYUI
+    $gitExe = "C:\Program Files\Git\cmd\git.exe"
+    if (-not (Test-Path $gitExe)) { $gitExe = "git" }
+    & $gitExe clone https://github.com/comfyanonymous/ComfyUI.git $COMFYUI
     if ($LASTEXITCODE -ne 0) { Fail "git clone failed" }
     OK "ComfyUI cloned"
 }
