@@ -10,6 +10,17 @@
 #   $env:REEMO_AGENT_TOKEN = "studio_fa413ff7044b"    # PFX Reemo studio key (Phase 8)
 #   $env:PARSEC_TEAM_ID    = "<id>"                   # optional
 #   $env:PARSEC_TEAM_SECRET= "<sec>"                  # optional
+#
+# Bulk provisioning from DO Spaces (much faster — skips HuggingFace + 38 pip installs):
+#   $env:DO_SPACES_KEY="xxx"; $env:DO_SPACES_SECRET="xxx"
+#   .\install.ps1 -FromSpaces
+#   Run spaces\upload-golden.ps1 on the golden machine first.
+
+param(
+    [switch]$FromSpaces,
+    [string]$SpacesKey    = $env:DO_SPACES_KEY,
+    [string]$SpacesSecret = $env:DO_SPACES_SECRET
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -60,18 +71,35 @@ function Main {
     $gpuLine = & nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader 2>&1 | Select-Object -First 1
     Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [SUCCESS] GPU: $gpuLine" -ForegroundColor Green
 
+    # Validate Spaces credentials early if -FromSpaces
+    if ($FromSpaces) {
+        if (-not $SpacesKey -or -not $SpacesSecret) {
+            Write-Host "ERROR: -FromSpaces requires DO_SPACES_KEY and DO_SPACES_SECRET (or -SpacesKey / -SpacesSecret)" -ForegroundColor Red
+            exit 1
+        }
+    }
+
     # Installation plan
     Write-Host ""
     Write-Host "=== Installation Plan ==="
     Write-Host "  Install dir: $COMFYUI_DIR"
     Write-Host "  Port:        $COMFYUI_PORT"
     Write-Host "  Service:     $SERVICE_NAME (NSSM)"
+    if ($FromSpaces) {
+        Write-Host "  Source:      DO Spaces (pfx-comfyui-assets / tor1) — fast path" -ForegroundColor Cyan
+    }
     Write-Host ""
     Write-Host "  1. Pre-flight checks (OS, CPU, RAM, GPU, disk)"
     Write-Host "  2. System baseline (directories, verify NVIDIA driver)"
     Write-Host "  3. Python 3.13 + MinGit + NSSM (direct downloads, parallel)"
     Write-Host "  4. Clone ComfyUI (commit 040460495), create venv, install PyTorch cu128"
-    Write-Host "  4.5 Install 25+ custom nodes from PFX snapshot"
+    if ($FromSpaces) {
+        Write-Host "  4b. Sync models + custom_nodes + venv from DO Spaces  [--from-spaces]" -ForegroundColor Cyan
+        Write-Host "      (replaces Phase 4.5 git clones + pip installs and model downloads)"
+    } else {
+        Write-Host "  4.5 Install 25+ custom nodes from PFX snapshot (git clone + pip)"
+        Write-Host "  4.6 Download models from HuggingFace (~90 GB)"
+    }
     Write-Host "  5. Register and start ComfyUI Windows service (NSSM)"
     Write-Host "  6. Validation (service, port, GPU via PyTorch)"
     Write-Host "  7. Workflow test (download SD1.5 model, run txt2img, verify output)"
@@ -91,8 +119,24 @@ function Main {
     Invoke-PythonInstall
 
     # Phase 4 + 4.5 + 5
-    Print-Message "blue" "=== Phase 4+4.5+5: ComfyUI Install + Custom Nodes + Service ==="
-    Invoke-ComfyUISetup
+    if ($FromSpaces) {
+        Print-Message "blue" "=== Phase 4: ComfyUI Clone + Venv + PyTorch ==="
+        # Invoke-ComfyUISetup runs Clone → Venv → PyTorch → custom-nodes → service.
+        # We still need clone+venv+pytorch, but replace custom-nodes+models with Spaces.
+        # comfyui-service.ps1 calls Invoke-CustomNodesInstall internally — we gate it
+        # with a sentinel so Spaces sync runs instead.
+        $env:SKIP_CUSTOM_NODES_GIT = "1"   # read by custom-nodes.ps1 to skip git clones
+        Invoke-ComfyUISetup
+
+        Print-Message "blue" "=== Phase 4b: Sync from DO Spaces (models + venv + nodes) ==="
+        & "$SCRIPT_DIR\..\spaces\download-spaces.ps1" `
+            -Key $SpacesKey `
+            -Secret $SpacesSecret
+        Remove-Item Env:\SKIP_CUSTOM_NODES_GIT -ErrorAction SilentlyContinue
+    } else {
+        Print-Message "blue" "=== Phase 4+4.5+5: ComfyUI Install + Custom Nodes + Service ==="
+        Invoke-ComfyUISetup
+    }
 
     # Phase 6
     Print-Message "blue" "=== Phase 6: Validation ==="

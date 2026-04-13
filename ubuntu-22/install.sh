@@ -7,8 +7,20 @@
 #   sudo bash install.sh
 #   COMFYUI_IMAGE="ghcr.io/ai-dock/comfyui:latest" sudo -E bash install.sh
 #   COMFYUI_PORT=8080 sudo -E bash install.sh
+#
+# Bulk provisioning from DO Spaces (skips HuggingFace downloads — much faster):
+#   DO_SPACES_KEY=xxx DO_SPACES_SECRET=xxx sudo -E bash install.sh --from-spaces
+#   Run spaces/upload-golden.sh on the golden machine first.
 
 set -euo pipefail
+
+# ── Spaces flag ─────────────────────────────────────────────────────────────
+# Parse --from-spaces before sourcing other scripts so the flag is available
+# throughout. Credentials come from env vars DO_SPACES_KEY / DO_SPACES_SECRET.
+FROM_SPACES=false
+for arg in "$@"; do
+    [[ "$arg" == "--from-spaces" ]] && FROM_SPACES=true
+done
 
 # Script directory — same pattern as autodesk/rocky-linux/install.sh
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -114,6 +126,23 @@ function main() {
     print_message "blue" "=== Phase 4: NVIDIA Container Toolkit ==="
     installNvidiaToolkit
 
+    # Phase 4b: Pre-populate volumes from DO Spaces (models + custom_nodes)
+    # Must run BEFORE Phase 5 so Docker volumes are ready when container starts.
+    if [[ "$FROM_SPACES" == "true" ]]; then
+        print_message "blue" "=== Phase 4b: Sync from DO Spaces (models + nodes) ==="
+        if [[ -z "${DO_SPACES_KEY:-}" || -z "${DO_SPACES_SECRET:-}" ]]; then
+            print_message "red" "DO_SPACES_KEY / DO_SPACES_SECRET not set — cannot sync from Spaces"
+            exit 1
+        fi
+        bash "${SCRIPT_DIR}/../spaces/download-spaces.sh" \
+            --key "$DO_SPACES_KEY" \
+            --secret "$DO_SPACES_SECRET" \
+            --data-dir "${DATA_DIR:-/data/comfyui}" \
+            --skip-site-packages   # container not running yet; site-packages done in Phase 5b
+    else
+        print_message "blue" "SKIP Phase 4b: --from-spaces not set (models will download from HuggingFace)"
+    fi
+
     # Phase 5: ComfyUI service
     print_message "blue" "=== Phase 5: ComfyUI Service ==="
     setupComfyUI
@@ -123,6 +152,18 @@ function main() {
     # Safe no-op on GPUs already supported by the image's bundled torch version.
     print_message "blue" "=== Phase 4b: PyTorch GPU Compatibility ==="
     upgradeContainerPyTorch
+
+    # Phase 5b: Restore container venv site-packages from Spaces
+    # Container is now running, so we can docker exec the extraction.
+    if [[ "$FROM_SPACES" == "true" ]]; then
+        print_message "blue" "=== Phase 5b: Restore container venv from Spaces ==="
+        bash "${SCRIPT_DIR}/../spaces/download-spaces.sh" \
+            --key "$DO_SPACES_KEY" \
+            --secret "$DO_SPACES_SECRET" \
+            --data-dir "${DATA_DIR:-/data/comfyui}" \
+            --skip-models \
+            --skip-nodes
+    fi
 
     # Phase 6: Validation
     print_message "blue" "=== Phase 6: Validation ==="

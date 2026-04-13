@@ -82,6 +82,14 @@ function Invoke-CustomNodesInstall {
         return
     }
 
+    # When running --from-spaces, install.ps1 sets SKIP_CUSTOM_NODES_GIT=1.
+    # Git clones and pip installs are skipped because download-spaces.ps1 will
+    # sync the node code and restore the venv snapshot instead.
+    if ($env:SKIP_CUSTOM_NODES_GIT -eq "1") {
+        Print-Message "blue" "SKIP: Custom nodes git/pip (--from-spaces — will be synced from DO Spaces)"
+        return
+    }
+
     if (-not (Test-Path $CUSTOM_NODES_DIR)) {
         New-Item -ItemType Directory -Path $CUSTOM_NODES_DIR -Force | Out-Null
     }
